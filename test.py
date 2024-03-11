@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/Users/raining/.pyenv/versions/2.7.18/bin/python
+# /usr/bin/python
 
 """Test runner for 6.172, fall 2010.
 

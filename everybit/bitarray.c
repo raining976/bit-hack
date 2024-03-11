@@ -148,6 +148,16 @@ static char bitmask (const size_t bit_index);
 static void bitarray_rotate_reverse (bitarray_t* const bitarray, const size_t bit_offset, const size_t bit_length, const size_t right_count);
 
 
+/**
+ * @brief 采用循环移位的方法优化（跳跃）
+ *
+ * @param bitarray bit串
+ * @param bit_offset 子串起始索引
+ * @param bit_length 子串长度
+ * @param right_count 右旋数量
+ */
+static void bitarray_rotate_cyclic (bitarray_t* const bitarray, const size_t bit_offset, const size_t bit_length, const size_t right_count);
+
 
 // ******************************* Functions ********************************
 
@@ -259,10 +269,16 @@ void bitarray_rotate (bitarray_t* const bitarray,
   // bitarray_rotate_left (bitarray, bit_offset, bit_length,
   //   modulo (-bit_right_amount, bit_length));
 
-  // 使用优化后的函数
-  size_t a = modulo (-bit_right_amount, bit_length);
+  // 使用循环移位的方法
+  size_t a = modulo (bit_right_amount, bit_length);
   if(a == 0) return;
-  bitarray_rotate_reverse (bitarray, bit_offset, bit_length, a);
+  bitarray_rotate_cyclic (bitarray, bit_offset, bit_length, a);
+
+
+  // 使用翻转字节的方法
+  // size_t a = modulo (-bit_right_amount, bit_length);
+  // if(a == 0) return;
+  // bitarray_rotate_reverse (bitarray, bit_offset, bit_length, a);
 }
 
 static void bitarray_rotate_left (bitarray_t* const bitarray,
@@ -281,8 +297,8 @@ static void bitarray_rotate_left (bitarray_t* const bitarray,
  * @param bitarray 父串
  * @param bit_offset 子串起始索引
  * @param bit_length 子串长度
- * 
- * 1100 1000 
+ *
+ * 1100 1000
  * 1000 1001
  */
 
@@ -324,14 +340,74 @@ static char bitmask (const size_t bit_index)
   static const unsigned char mask[8] = { 1,2,4,8,16,32,64,128 };
   return mask[bit_index % 8];
 }
-  
+
 
 
 
 
 // ******************************* 优化函数 ********************************
+// cyclic方法的思路
+// 改进循环位移的方法，原来是一位一位移动，现在是直接把当前的位移动到对应位置上去
+// 也就是“跳着”移动
 
-// 核心思路
+// 此时需要区分总长度是否能整除需要移动的位数的情况
+// 如果不能整除，只需要将每次跳跃的步数设置成要移动的位数right_count即可
+// 循环length遍即可将所有的位置移动到对应位置
+
+// 如果可以被整除，此时会陷入“一个固定步长”的循环
+// 因此需要提前计算好外层循环和内层循环的次数
+
+// 如果right_count == 1时 这种特殊情况 与原算法复杂度一样
+
+static void bitarray_rotate_cyclic (bitarray_t* const bitarray, const size_t bit_offset, const size_t bit_length, const size_t right_count)
+{
+  if(bit_length == 0) return;
+
+  assert(bit_offset + bit_length <= bitarray->bit_sz);
+
+  size_t cycle, cycle_nums = 1; // cycle_nums 一共要循环几次 是外层循环的总数 初始化为1
+  size_t step, period = bit_length; // period 每次循环一共跳跃多少步 是内循环数 初始化为1
+  // 如果没有被整除 显然只需要循环一次 这次循环要跳跃bit_length步，才能保证所有的bit都被正确移动了
+
+  // 如果长度可以被需要移动的位数所整除 
+  if(bit_length % right_count == 0) {
+    period = bit_length / right_count;
+    cycle_nums = bit_length / period;
+  }
+
+  // 不要忽略“反向整除” right_count 很大时，另一小部分可能也会被整除
+  if(bit_length % (bit_length - right_count) == 0) {
+    period = bit_length / (bit_length - right_count);
+    cycle_nums = bit_length / period;
+  }
+
+  bool prev, next; // 前一个、后一个位置的bit值
+  size_t p = bit_offset; // 初始化前一个位置索引
+  size_t n = bit_offset + modulo (p + right_count - bit_offset, bit_length); // 循环跳跃 模运算是为了到达子串最后时循环回来
+
+  for(cycle = 0; cycle < cycle_nums; cycle++) {
+    prev = bitarray_get (bitarray, p);
+    next = bitarray_get (bitarray, n);
+
+    for(step = 0; step < period; step++) {
+      bitarray_set (bitarray, n, prev); // 前一个位置替换后一个位置 右循环
+      if(step < period - 1) { // 如果不是最后一个 就更新p n索引
+        p = n;
+        prev = next;
+        n = bit_offset + modulo (p + right_count - bit_offset, bit_length); // 这里的p已经被更新了 实际是当前的n
+        next = bitarray_get (bitarray, n);
+      }
+    }
+
+    // 能被整除时 这里就需要手动进入下一轮的循环 否则就会一直陷入对一部分的bit的修改
+    p++;
+    n = bit_offset + modulo (p + right_count - bit_offset, bit_length);
+  }
+}
+
+
+
+// reverse 方法的核心思路
 // ab -> ba 其中a与b都是一个bit串
 // 1. 反转 a->a1, 反转 b->b1得到 a1b1
 // 2. 反转 a1b1 -> ba
@@ -395,7 +471,7 @@ void bitarray_set_byte (const bitarray_t* const bitarray, const size_t index, co
 
 /**
  * @brief 以字节为单位翻转目标索引区间内的所有字节
- * 
+ *
  * @param bitarray 原bit串
  * @param start_byte_index 开始索引
  * @param end_byte_index 结束索引
@@ -504,14 +580,14 @@ void subarray_rotate_reverse (bitarray_t* const bitarray, const size_t bit_offse
 }
 
 
- /**
-  * @brief 反转一个bit串的任意子串
-  *
-  * @param bitarray bit串
-  * @param bit_offset 子串起始索引
-  * @param bit_length 子串长度
-  * @param right_count 子串两部分 右侧长度
-  */
+/**
+ * @brief 反转一个bit串的任意子串
+ *
+ * @param bitarray bit串
+ * @param bit_offset 子串起始索引
+ * @param bit_length 子串长度
+ * @param right_count 子串两部分 右侧长度
+ */
 static void bitarray_rotate_reverse (bitarray_t* const bitarray, const size_t bit_offset, const size_t bit_length, const size_t right_count)
 {
   assert (bit_offset + bit_length <= bitarray->bit_sz); // 防止越界

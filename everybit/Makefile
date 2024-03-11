@@ -57,14 +57,15 @@ PRODUCT = everybit
 # What we're building with
 CC = clang
 CFLAGS = -std=c99 -Wall -m64 -g
-LDFLAGS = -flto -fuse-ld=gold 
+# LDFLAGS = -flto -fuse-ld=gold 
+LDFLAGS = -flto
 
 # We need to link against the timing library for whatever OS we're on.
 PLATFORM = $(shell uname)
 ifeq ($(PLATFORM),Linux)
 	LDFLAGS += -lrt
 else ifeq ($(PLATFORM),Darwin)
-	LDFLAGS += -arch x86_64 -framework CoreServices
+	LDFLAGS += -framework CoreServices
 endif
 
 
