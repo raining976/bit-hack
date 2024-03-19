@@ -270,15 +270,15 @@ void bitarray_rotate (bitarray_t* const bitarray,
   //   modulo (-bit_right_amount, bit_length));
 
   // 使用循环移位的方法
-  size_t a = modulo (bit_right_amount, bit_length);
-  if(a == 0) return;
-  bitarray_rotate_cyclic (bitarray, bit_offset, bit_length, a);
+  // size_t a = modulo (bit_right_amount, bit_length);
+  // if(a == 0) return;
+  // bitarray_rotate_cyclic (bitarray, bit_offset, bit_length, a);
 
 
   // 使用翻转字节的方法
-  // size_t a = modulo (-bit_right_amount, bit_length);
-  // if(a == 0) return;
-  // bitarray_rotate_reverse (bitarray, bit_offset, bit_length, a);
+  size_t a = modulo (-bit_right_amount, bit_length);
+  if(a == 0) return;
+  bitarray_rotate_reverse (bitarray, bit_offset, bit_length, a);
 }
 
 static void bitarray_rotate_left (bitarray_t* const bitarray,
@@ -363,7 +363,7 @@ static void bitarray_rotate_cyclic (bitarray_t* const bitarray, const size_t bit
 {
   if(bit_length == 0) return;
 
-  assert(bit_offset + bit_length <= bitarray->bit_sz);
+  assert (bit_offset + bit_length <= bitarray->bit_sz);
 
   size_t cycle, cycle_nums = 1; // cycle_nums 一共要循环几次 是外层循环的总数 初始化为1
   size_t step, period = bit_length; // period 每次循环一共跳跃多少步 是内循环数 初始化为1
@@ -479,7 +479,7 @@ void bitarray_set_byte (const bitarray_t* const bitarray, const size_t index, co
 void bitarray_reverse_byByte (bitarray_t* const bitarray, const size_t start_byte_index, const size_t end_byte_index)
 {
   // 中点位置索引
-  size_t mid_index = (start_byte_index + end_byte_index) / 2;
+  size_t mid_index = start_byte_index + (end_byte_index - start_byte_index) / 2;
   size_t temp_index;
   unsigned char temp;
   // 先不考虑多出来的bit 直接以字节为单位翻转所有待翻转区间内的所有字节
@@ -569,12 +569,12 @@ void subarray_rotate_reverse (bitarray_t* const bitarray, const size_t bit_offse
   // 1111 1100 >> 2
   // 0011 1111
   unsigned char start_right = (unsigned char)(first_byte_reverse >> shift_start_bit) << shift_start_bit;
-  unsigned char start_left = (unsigned char)(get_reverse_byte ((unsigned char)bitarray_get_byte (bitarray, start_byte_index))) << (8 - shift_start_bit) >> (8 - shift_start_bit);
+  unsigned char start_left = (unsigned char)(get_reverse_byte ((unsigned char)bitarray_get_byte (bitarray, start_byte_index)) << (8 - shift_start_bit))  >> (8 - shift_start_bit);
   bitarray_set_byte (bitarray, start_byte_index, get_reverse_byte (start_right | start_left));
 
   // end端同理
   unsigned char end_left = (unsigned char)(last_byte_reverse << shift_end_bit) >> shift_end_bit;
-  unsigned char end_right = (unsigned char)(get_reverse_byte ((unsigned char)bitarray_get_byte (bitarray, end_byte_index))) >> (8 - shift_end_bit) << (8 - shift_end_bit);
+  unsigned char end_right = (unsigned char)(get_reverse_byte ((unsigned char)bitarray_get_byte (bitarray, end_byte_index)) >> (8 - shift_end_bit)) << (8 - shift_end_bit);
   bitarray_set_byte (bitarray, end_byte_index, get_reverse_byte (end_right | end_left));
 
 }
