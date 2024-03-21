@@ -359,6 +359,14 @@ static char bitmask (const size_t bit_index)
 
 // 如果right_count == 1时 这种特殊情况 与原算法复杂度一样
 
+/**
+ * @brief 循环移位
+ * 
+ * @param bitarray bit串
+ * @param bit_offset 子串起始索引
+ * @param bit_length 子串长度
+ * @param right_count 右旋位数
+ */
 static void bitarray_rotate_cyclic (bitarray_t* const bitarray, const size_t bit_offset, const size_t bit_length, const size_t right_count)
 {
   if(bit_length == 0) return;
